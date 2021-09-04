@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime
 from os import getcwd
-from os.path import join, dirname
+from os.path import join
 from typing import Dict, List
 
-PROJECT_DIR = dirname(getcwd())
+PROJECT_DIR = getcwd()
 DATA_DIR = join(PROJECT_DIR, 'data')
 LOG_DIR = join(PROJECT_DIR, "logs")
 
