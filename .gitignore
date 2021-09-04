@@ -1,5 +1,6 @@
 .idea/
-corpusd_cleandata/*
+data/*
 .ipynb_checkpoints/
 **/*.npy
 **/*.pdf
+**/__pycache__/
