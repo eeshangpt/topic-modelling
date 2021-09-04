@@ -3,26 +3,24 @@
 |    READ DATA    |
 +-----------------+
 """
-import json
-import os
 from json import load
 from os import walk
 from os.path import isfile
 from timeit import default_timer as timer
 
-import nltk
 import numpy as np
+from nltk import download
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer, PorterStemmer
+from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from tqdm import tqdm
 
 from utils.basic_utilities import *
 
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+download('punkt')
+download('stopwords')
+download('wordnet')
 
 
 def get_documents(logger_: logging.Logger) -> List:
@@ -39,26 +37,51 @@ def get_documents(logger_: logging.Logger) -> List:
     return documents
 
 
-# stop_words = stopwords.words('english')
-# lemmatizer = WordNetLemmatizer()
-# stemmer = PorterStemmer()
-#
-# doc_text_tokens_lemma = [" ".join([lemmatizer.lemmatize(token.lower()) for token in word_tokenize(doc_text)
-#                                    if token not in stop_words])
-#                          for doc_text in map(lambda doc: doc['text'], documents)]
-#
-# count_vectorizer = CountVectorizer()
-# doc_text_tokens_cnt_vec = count_vectorizer.fit_transform(doc_text_tokens_lemma)
-# np.save("vectorized_count", doc_text_tokens_cnt_vec)
-#
-# tfidf_vectorizer = TfidfVectorizer()
-# doc_text_tokens_idf_vec = tfidf_vectorizer.fit_transform(doc_text_tokens_lemma)
-# np.save("vectorized_tfidf", doc_text_tokens_idf_vec)
+def preprocess_text(logger_: logging.Logger, documents: List) -> List:
+    logger = logger_.getChild("preprocess_text")
+    logger.debug("Fetching all the stop words in english language.")
+    stop_words = stopwords.words('english')
+    logger.debug("Defining Lemmatizer.")
+    lemmatizer = WordNetLemmatizer()
+
+    logger.debug("Cleaning data...")
+    return [" ".join([lemmatizer.lemmatize(token.lower()) for token in word_tokenize(doc_text)
+                      if token not in stop_words])
+            for doc_text in map(lambda doc: doc['text'], documents)]
+
+
+def __vectorize(vectorizer: CountVectorizer, documents_cleaned: list, file: str, logger: logging.Logger):
+    logger.debug("Vectorizing...")
+    start = timer()
+    doc_text_tokens_vec = vectorizer.fit_transform(documents_cleaned)
+    logger.debug(f"Vectorizing completed in {timer() - start} seconds.")
+    filepath = join(DATA_DIR, file)
+    logger.info(f"Saving TF matrix as {file}.npy")
+    np.save(filepath, doc_text_tokens_vec)
+
+
+def vectorize_count(logger_: logging.Logger, documents_cleaned: List, file: str = "vectorized_count") -> None:
+    logger = logger_.getChild("vectorize_count")
+    logger.debug("Defining Term-Frequency Vectorizer.")
+    count_vectorizer = CountVectorizer()
+    __vectorize(count_vectorizer, documents_cleaned, file, logger)
+
+
+def vectorize_tfidf(logger_: logging.Logger, documents_cleaned: List, file: str = "vectorized_tfidf") -> None:
+    logger = logger_.getChild("vectorize_tfidf")
+    logger.debug("Defining TF-IDF Vectorizer.")
+    tfidf_vectorizer = TfidfVectorizer()
+    __vectorize(tfidf_vectorizer, documents_cleaned, file, logger)
 
 
 def driver(logger_: logging.Logger) -> None:
     logger = logger_.getChild("driver")
     documents = get_documents(logger)
+    start = timer()
+    documents_cleaned = preprocess_text(logger, documents)
+    vectorize_count(logger, documents_cleaned)
+    vectorize_tfidf(logger, documents_cleaned)
+    logger.debug(f"Cleaning completed in {timer() - start} seconds.")
     return None
 
 
