@@ -79,9 +79,9 @@ def driver(logger_: logging.Logger) -> None:
     documents = get_documents(logger)
     start = timer()
     documents_cleaned = preprocess_text(logger, documents)
+    logger.debug(f"Cleaning completed in {timer() - start} seconds.")
     vectorize_count(logger, documents_cleaned)
     vectorize_tfidf(logger, documents_cleaned)
-    logger.debug(f"Cleaning completed in {timer() - start} seconds.")
     return None
 
 
