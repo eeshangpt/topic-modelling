@@ -4,3 +4,4 @@ data/*
 **/*.npy
 **/*.pdf
 **/__pycache__/
+**/glove_embedding/

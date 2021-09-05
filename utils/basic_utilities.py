@@ -6,7 +6,8 @@ from typing import Dict, List
 
 PROJECT_DIR = getcwd()
 DATA_DIR = join(PROJECT_DIR, 'data')
-LOG_DIR = join(PROJECT_DIR, "logs")
+LOG_DIR = join(PROJECT_DIR, 'logs')
+EMBEDDING_DIR = join(PROJECT_DIR, 'glove_embedding')
 
 
 def get_unique_file_name() -> str:

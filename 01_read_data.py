@@ -50,12 +50,12 @@ def preprocess_text(logger_: logging.Logger, documents: List) -> List:
             for doc_text in map(lambda doc: doc['text'], documents)]
 
 
-def __vectorize(vectorizer: CountVectorizer, documents_cleaned: list, file: str, logger: logging.Logger):
+def __vectorize(vectorizer: CountVectorizer, documents_cleaned: list, file: str, logger: logging.Logger) -> None:
     logger.debug("Vectorizing...")
     start = timer()
     doc_text_tokens_vec = vectorizer.fit_transform(documents_cleaned)
     logger.debug(f"Vectorizing completed in {timer() - start} seconds.")
-    filepath = join(DATA_DIR, file)
+    filepath = join(DATA_DIR, "encoded", file)
     logger.info(f"Saving TF matrix as {file}.npy")
     np.save(filepath, doc_text_tokens_vec)
 
