@@ -22,7 +22,6 @@ class GloVeEmbedding(object):
         """
         self.logger = logging.getLogger("GloVeEmbedding")
         self.available_dimensions = [25, 50, 100, 200]
-        # TODO: either make it dynamics or select one based on strong evidence.
         self.dimension = self.available_dimensions[default_dim_index]
         self.embedding_file_name = f"glove.twitter.27B.{self.dimension}d.txt"
         self.embedding_dir = embedding_dir
