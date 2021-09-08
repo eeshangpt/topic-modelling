@@ -3,6 +3,7 @@
 |    READ DATA    |
 +-----------------+
 """
+import re
 from json import load
 from os import walk
 from os.path import isfile
@@ -24,6 +25,9 @@ download('wordnet')
 
 
 def get_documents(logger_: logging.Logger) -> List:
+    """
+    Fetching all the docs.
+    """
     logger = logger_.getChild("get_documents")
     logger.debug("Starting fetch process...")
     documents = []
@@ -37,7 +41,20 @@ def get_documents(logger_: logging.Logger) -> List:
     return documents
 
 
+def token_condition(token) -> bool:
+    """
+    Check conditions on the token. URLs primarily.
+    """
+    # if (re.match(r"[\/]*w{3}[.\D{3,}+]+", token) == None and re.match(r"http\S+", token) == None):
+    #     return True
+    # return False
+    return re.match(r"[/]*w{3}[.\D{3,}+]+", token) is None and re.match(r"http\S+", token) is None
+
+
 def preprocess_text(logger_: logging.Logger, documents: List) -> List:
+    """
+    Preprocessing the text.
+    """
     logger = logger_.getChild("preprocess_text")
     logger.debug("Fetching all the stop words in english language.")
     stop_words = stopwords.words('english')
@@ -45,12 +62,17 @@ def preprocess_text(logger_: logging.Logger, documents: List) -> List:
     lemmatizer = WordNetLemmatizer()
 
     logger.debug("Cleaning data...")
-    return [" ".join([lemmatizer.lemmatize(token.lower()) for token in word_tokenize(doc_text)
-                      if token not in stop_words])
-            for doc_text in map(lambda doc: doc['text'], documents)]
+    documents_cleaned = [[lemmatizer.lemmatize(token.lower())
+                          for token in word_tokenize(doc_text.lower())
+                          if token not in stop_words and token_condition(token)]
+                         for doc_text in map(lambda doc_dict: doc_dict['text'], documents)]
+    return documents_cleaned
 
 
 def __vectorize(vectorizer: CountVectorizer, documents_cleaned: list, file: str, logger: logging.Logger) -> None:
+    """
+    Vectorize the corpus and store.
+    """
     logger.debug("Vectorizing...")
     start = timer()
     doc_text_tokens_vec = vectorizer.fit_transform(documents_cleaned)
@@ -61,6 +83,9 @@ def __vectorize(vectorizer: CountVectorizer, documents_cleaned: list, file: str,
 
 
 def vectorize_count(logger_: logging.Logger, documents_cleaned: List, file: str = "vectorized_count") -> None:
+    """
+    Accepts a list of strings and create a Term-Frequency matrix.
+    """
     logger = logger_.getChild("vectorize_count")
     logger.debug("Defining Term-Frequency Vectorizer.")
     count_vectorizer = CountVectorizer()
@@ -68,26 +93,10 @@ def vectorize_count(logger_: logging.Logger, documents_cleaned: List, file: str 
 
 
 def vectorize_tfidf(logger_: logging.Logger, documents_cleaned: List, file: str = "vectorized_tfidf") -> None:
+    """
+    Accepts a list of strings and create a TermFrequency-InverseDocumentFrequency matrix.
+    """
     logger = logger_.getChild("vectorize_tfidf")
     logger.debug("Defining TF-IDF Vectorizer.")
     tfidf_vectorizer = TfidfVectorizer()
     __vectorize(tfidf_vectorizer, documents_cleaned, file, logger)
-
-
-def driver(logger_: logging.Logger) -> None:
-    logger = logger_.getChild("driver")
-    documents = get_documents(logger)
-    start = timer()
-    documents_cleaned = preprocess_text(logger, documents)
-    logger.debug(f"Cleaning completed in {timer() - start} seconds.")
-    vectorize_count(logger, documents_cleaned)
-    vectorize_tfidf(logger, documents_cleaned)
-    return None
-
-
-if __name__ == '__main__':
-    logger_main = logging.getLogger("READ_DATA")
-    logging.basicConfig(**get_config(logging.DEBUG, file_logging=False, filename="", stop_stream_logging=False))
-    logger_main.critical(__doc__)
-    driver(logger_main)
-    logger_main.critical(end_line.__doc__)
