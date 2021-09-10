@@ -5,3 +5,4 @@ data/*
 **/*.pdf
 **/__pycache__/
 **/glove_embedding/
+docs/
