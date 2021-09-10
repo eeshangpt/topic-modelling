@@ -3,36 +3,17 @@
 |    GloVe EMBEDDING    |
 +-----------------------+
 """
-import pickle
-from os.path import isfile
 from timeit import default_timer as timer
 
 import numpy as np
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import Tokenizer
 
-from read_data import get_documents, preprocess_text
+from read_data import get_corpus
 from utils.basic_utilities import *
 from utils.embedding_utilities import GloVeEmbedding
 
 np.random.seed(10)
-
-
-def get_corpus(logger_: logging.Logger, dimension: int) -> List:
-    logger = logger_.getChild("get_corpus")
-    logger.debug("Getting cleaned documents and creating a corpus...")
-    start = timer()
-    tokenized_pickle = join(DATA_DIR, 'corpus', f'tokenized_{dimension}.pkl')
-    try:
-        assert not isfile(tokenized_pickle)
-        docs_cleaned = preprocess_text(logger, get_documents(logger))
-        with open(tokenized_pickle, 'wb') as f:
-            pickle.dump(docs_cleaned, f)
-    except AssertionError:
-        with open(tokenized_pickle, 'rb') as f:
-            docs_cleaned = pickle.load(f)
-    logger.debug(f"Got corpus in {timer() - start} seconds.")
-    return docs_cleaned
 
 
 def driver(logger_: logging.Logger) -> None:
