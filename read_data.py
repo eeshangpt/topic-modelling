@@ -9,7 +9,7 @@ from json import load
 from os import walk
 from os.path import isfile
 from timeit import default_timer as timer
-from typing import Any
+from typing import Any, Tuple
 
 from nltk import download
 from nltk.corpus import stopwords
@@ -47,7 +47,15 @@ def token_condition(token) -> bool:
     """
     Check conditions on the token. URLs primarily.
     """
-    return re.match(r"[/]*w{3}[.\D{3,}+]+", token) is None and re.match(r"http\S+", token) is None
+    cond_1 = re.match(r"[/]*w{3}[.\D{3,}+]+", token) is None  # Most of the URLs
+    cond_2 = re.match(r"http\S+", token) is None  # String having "http:" .
+    cond_3 = re.match(r"\d+", token) is None  # Stings containing digits.
+    cond_4 = len(token) > 2  # String having length > 2.
+    cond_5 = re.match(r'[\u4e00-\u9fff]+', token) is None  # Removing Chinese, Japanese, Korean characters.
+    cond_6 = re.match(r'\w+', token) is not None  # Removing words starting with special charcters.
+    cond_7 = re.match(r'(.+/){2,}', token) is None  # Removing words with more than 2 "/".
+    conditions = cond_1 and cond_2 and cond_3 and cond_4 and cond_5 and cond_6 and cond_7
+    return conditions
 
 
 def preprocess_text(logger_: logging.Logger, documents: List) -> List:
@@ -60,11 +68,17 @@ def preprocess_text(logger_: logging.Logger, documents: List) -> List:
     logger.debug("Defining Lemmatizer.")
     lemmatizer = WordNetLemmatizer()
 
-    logger.debug("Cleaning data...")
-    documents_cleaned = [[lemmatizer.lemmatize(token.lower())
-                          for token in word_tokenize(doc_text.lower())
-                          if token not in stop_words and token_condition(token)]
-                         for doc_text in map(lambda doc_dict: doc_dict['text'], documents)]
+    logger.debug("Lemmatizing & Cleaning data...")
+    documents_cleaned = []
+    for doc_text in map(lambda doc_dict: doc_dict['text'], documents):
+        temp_ = []
+        for token in word_tokenize(doc_text.lower()):
+            lemma_token = lemmatizer.lemmatize(token)
+            if token_condition(lemma_token):
+                if lemma_token not in stop_words:
+                    temp_.append(lemma_token)
+        documents_cleaned.append(temp_)
+        del temp_
     return documents_cleaned
 
 
@@ -72,19 +86,19 @@ def __save_as_a_file(vectorizer: CountVectorizer, documents_cleaned: list, file:
     """
     Vectorize the corpus and store.
     """
-    doc_text_tokens_vec = __vectorize(documents_cleaned, logger, vectorizer)
+    vectorizer, doc_text_tokens_vec = __vectorize(documents_cleaned, logger, vectorizer)
     filepath = join(DATA_DIR, "encoded", file)
     logger.info(f"Saving TF matrix as {file}.pkl")
     with open(filepath, 'wb') as f:
-        pickle.dump(doc_text_tokens_vec, f)
+        pickle.dump((vectorizer, doc_text_tokens_vec), f)
 
 
-def __vectorize(documents_cleaned, logger, vectorizer) -> csr_matrix:
+def __vectorize(documents_cleaned, logger, vectorizer) -> Tuple[CountVectorizer, csr_matrix]:
     logger.debug("Vectorizing...")
     start = timer()
     doc_text_tokens_vec = vectorizer.fit_transform(documents_cleaned)
     logger.debug(f"Vectorizing completed in {timer() - start} seconds.")
-    return doc_text_tokens_vec
+    return vectorizer, doc_text_tokens_vec
 
 
 def vectorize_count(logger_: logging.Logger, documents_cleaned: List, file: str = "vectorized_count.pkl",
@@ -93,11 +107,15 @@ def vectorize_count(logger_: logging.Logger, documents_cleaned: List, file: str 
     Accepts a list of strings and create a Term-Frequency matrix.
     """
     logger = logger_.getChild("vectorize_count")
+    logger.debug("Creating vocabulary...")
+    start = timer()
+    vocabulary = set([i for doc in documents_cleaned for i in doc.split()])
+    logger.debug(f"Vocabulary created in {timer() - start} seconds.")
     logger.debug("Defining Term-Frequency Vectorizer.")
-    count_vectorizer = CountVectorizer()
+    count_vectorizer = CountVectorizer(max_df=0.95, min_df=2, stop_words='english', vocabulary=vocabulary)
     if not save_matrix:
         logger.debug("Directly returning the vectors.")
-        return count_vectorizer, __vectorize(documents_cleaned, logger, count_vectorizer)
+        return __vectorize(documents_cleaned, logger, count_vectorizer)
     else:
         logger.debug("Saving the vectors.")
         __save_as_a_file(count_vectorizer, documents_cleaned, file, logger)
@@ -109,8 +127,12 @@ def vectorize_tfidf(logger_: logging.Logger, documents_cleaned: List, file: str 
     Accepts a list of strings and create a TermFrequency-InverseDocumentFrequency matrix.
     """
     logger = logger_.getChild("vectorize_tfidf")
+    logger.debug("Creating vocabulary...")
+    start = timer()
+    vocabulary = set([i for doc in documents_cleaned for i in doc.split()])
+    logger.debug(f"Vocabulary created in {timer() - start} seconds.")
     logger.debug("Defining TF-IDF Vectorizer.")
-    tfidf_vectorizer = TfidfVectorizer()
+    tfidf_vectorizer = TfidfVectorizer(stop_words='english', vocabulary=vocabulary)
     if not save_matrix:
         logger.debug("Directly returning the vectors.")
         return tfidf_vectorizer, __vectorize(documents_cleaned, logger, tfidf_vectorizer)
@@ -120,6 +142,9 @@ def vectorize_tfidf(logger_: logging.Logger, documents_cleaned: List, file: str 
 
 
 def get_corpus(logger_: logging.Logger, dimension: int = None) -> List:
+    """
+    Fetches corpus i.e. tokenized documents either from raw text or saved pickle.
+    """
     logger = logger_.getChild("get_corpus")
     logger.debug("Getting cleaned documents and creating a corpus...")
     start = timer()
