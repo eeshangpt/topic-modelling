@@ -5,4 +5,5 @@ Steps:
 - `mkdir -p data/corpus`
 - `mkdir -p data/embedded`
 - Extract all the documents in `./data`.
+    - `dvc pull`
 
