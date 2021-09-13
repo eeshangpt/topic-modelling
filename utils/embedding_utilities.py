@@ -11,6 +11,16 @@ import numpy as np
 from .basic_utilities import *
 
 
+def cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> np.float:
+    """
+    """
+    try:
+        assert vec_a.shape == vec_b.shape
+        return np.dot(vec_a, vec_b) / (np.linalg.norm(vec_a) * np.linalg.norm(vec_b))
+    except AssertionError:
+        return np.float(0.)
+
+
 class GloVeEmbedding(object):
     """
     Embedding Class
@@ -68,16 +78,6 @@ class GloVeEmbedding(object):
             return self.embeddings[word.lower()]
         return np.array([0] * self.dimension)
 
-    def cosine_similarity(self, vec_a: np.ndarray, vec_b: np.ndarray) -> np.float:
-        """
-        """
-        try:
-            assert vec_a.shape == vec_b.shape
-            return np.dot(vec_a, vec_b) / (np.linalg.norm(vec_a) * np.linalg.norm(vec_b))
-        except AssertionError:
-            self.logger.error("AAA")
-            return np.float(0.)
-
     def most_similar(self, positves: List, negatives: List, num_similar: int = 3):
         logger = self.logger.getChild("most_similar")
         temp = np.zeros((self.dimension,))
@@ -91,7 +91,7 @@ class GloVeEmbedding(object):
         similar_tokens = []
         for token in self.embeddings.keys():
             if token not in positves and token not in negatives:
-                similar_tokens.append((token, self.cosine_similarity(temp, self.embeddings[token])))
+                similar_tokens.append((token, cosine_similarity(temp, self.embeddings[token])))
         similar_tokens = np.array(similar_tokens)
 
         # similar_tokens = np.array([(token, self.cosine_similarity(temp, self.embeddings[token]))
