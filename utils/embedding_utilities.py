@@ -85,17 +85,15 @@ class GloVeEmbedding(object):
         for pos_token in positves:
             temp += self.get(pos_token)
 
+        logger.debug("Subtracting negaives.")
         for neg_token in negatives:
             temp -= self.get(neg_token)
+        del pos_token, neg_token
 
-        similar_tokens = []
-        for token in self.embeddings.keys():
-            if token not in positves and token not in negatives:
-                similar_tokens.append((token, cosine_similarity(temp, self.embeddings[token])))
-        similar_tokens = np.array(similar_tokens)
-
-        # similar_tokens = np.array([(token, self.cosine_similarity(temp, self.embeddings[token]))
-        #                            for token in self.embeddings.keys()
-        #                            if token not in positves and token not in negatives])
+        logger.debug("Finding similarity with all the tokens present...")
+        similar_tokens = np.array([(token, cosine_similarity(temp, self.get(token)))
+                                   for token in self.embeddings.keys()
+                                   if token not in positves and token not in negatives])
+        logger.debug("Similarity with all the tokes now found.")
         sort_index = np.argsort(similar_tokens[:, 1].astype(np.float))[::-1]
         return [similar_tokens[sort_index[i]].tolist() for i in range(num_similar)]
