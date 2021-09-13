@@ -67,3 +67,35 @@ class GloVeEmbedding(object):
         if word.lower() in self.embeddings:
             return self.embeddings[word.lower()]
         return np.array([0] * self.dimension)
+
+    def cosine_similarity(self, vec_a: np.ndarray, vec_b: np.ndarray) -> np.float:
+        """
+        """
+        try:
+            assert vec_a.shape == vec_b.shape
+            return np.dot(vec_a, vec_b) / (np.linalg.norm(vec_a) * np.linalg.norm(vec_b))
+        except AssertionError:
+            self.logger.error("AAA")
+            return np.float(0.)
+
+    def most_similar(self, positves: List, negatives: List, num_similar: int = 3):
+        logger = self.logger.getChild("most_similar")
+        temp = np.zeros((self.dimension,))
+        logger.debug("Adding the positives.")
+        for pos_token in positves:
+            temp += self.get(pos_token)
+
+        for neg_token in negatives:
+            temp -= self.get(neg_token)
+
+        similar_tokens = []
+        for token in self.embeddings.keys():
+            if token not in positves and token not in negatives:
+                similar_tokens.append((token, self.cosine_similarity(temp, self.embeddings[token])))
+        similar_tokens = np.array(similar_tokens)
+
+        # similar_tokens = np.array([(token, self.cosine_similarity(temp, self.embeddings[token]))
+        #                            for token in self.embeddings.keys()
+        #                            if token not in positves and token not in negatives])
+        sort_index = np.argsort(similar_tokens[:, 1].astype(np.float))[::-1]
+        return [similar_tokens[sort_index[i]].tolist() for i in range(num_similar)]
