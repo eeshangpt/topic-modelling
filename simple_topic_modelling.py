@@ -16,19 +16,19 @@ NUM_WORDS_IN_TOPIC = 15
 NUM_TOPICS = 20
 
 
-def write_doc_topic_file(doc_topic_dictionary: Dict) -> NoReturn:
+def write_doc_topic_file(doc_topic_dictionary: Dict, file_name: str) -> NoReturn:
     """
     Writes file containing document and predicted topic pair.
     """
-    with open(join(RESULTS_DIR, "doc_topic.json"), 'w') as f:
+    with open(join(RESULTS_DIR, f"doc_topic_{file_name}.json"), 'w') as f:
         json.dump(doc_topic_dictionary, f)
 
 
-def write_topic_word_file(topics: Dict) -> NoReturn:
+def write_topic_word_file(topics: Dict, file_name: str) -> NoReturn:
     """
     Writes file containing topic and their word pairs.
     """
-    with open(join(RESULTS_DIR, "topic_word.json"), 'w') as f:
+    with open(join(RESULTS_DIR, f"topic_word_{file_name}.json"), 'w') as f:
         json.dump(topics, f)
 
 
@@ -91,14 +91,15 @@ def driver(logger_: logging.Logger) -> None:
     # documents = get_corpus(logger)
     logger.debug("Loading document vectors...")
     start = timer()
-    vectorizer, input_matrix = vectorize_count(logger, documents, save_matrix=False)
+    # vectorizer, input_matrix = vectorize_count(logger, documents, save_matrix=False)
+    vectorizer, input_matrix = vectorize_tfidf(logger, documents, save_matrix=False)
     logger.debug(f"Document-Vectors loaded in {timer() - start} seconds.")
     logger.debug(f"Shape of matrix = {input_matrix.shape}")
 
     lda_model = simple_lda_model_training(input_matrix, logger)
     topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
-    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, topics, logger)
     write_topic_word_file(topics)
+    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, topics, logger)
     write_doc_topic_file(doc_topic_dictionary)
     return None
 
