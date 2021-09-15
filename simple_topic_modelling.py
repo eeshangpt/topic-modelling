@@ -4,7 +4,8 @@
 +------------------------------+
 """
 import json
-import logging
+from os import mkdir
+from os.path import isdir
 from typing import NoReturn
 
 import matplotlib
@@ -117,6 +118,36 @@ def online_lda_model_training(input_matrix: csr_matrix, logger_: logging.Logger)
     return lda_model
 
 
+def topic_distribution_plots(file_name, logger_, topics) -> bool:
+    """"""
+    logger = logger_.getChild("topic_distribution_plots")
+
+    logger.debug("Starting to plot and saving...")
+    plot_dir = join(RESULTS_DIR, f'{file_name}_plots')
+
+    try:
+        mkdir(plot_dir)
+        assert isdir(plot_dir)
+    except FileExistsError:
+        pass
+    except AssertionError:
+        logger.critical("Plotting connot be completed. Skipping Visualisations...")
+        return False
+
+    start = timer()
+    for i in range(len(topics)):
+        plt.figure(figsize=(8, 6))
+        plt.bar(list(topics[i].keys()), np.array(list(topics[i].values())) * 100)
+        plt.ylabel("% age")
+        plt.xlabel("words".upper())
+        plt.title(f"topic# {i}".upper())
+        plt.xticks(rotation=45)
+        plt.savefig(join(RESULTS_DIR, f'{file_name}_plots', f'topic_num_{i}.png'), format='png')
+    logger.debug(f"Visualisation took {timer() - start} seconds.")
+
+    return True
+
+
 def driver(logger_: logging.Logger) -> None:
     """
     DRIVER.
@@ -130,13 +161,14 @@ def driver(logger_: logging.Logger) -> None:
     logger.debug(f"Document-Vectors loaded in {timer() - start} seconds.")
     logger.debug(f"Shape of matrix = {input_matrix.shape}")
 
-    # logger.debug("Batch Latent Dirichlet Allocation.")
-    # file_name = "batch_lda"
-    # lda_model = simple_lda_model_training(input_matrix, logger)
-    # topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
-    # write_topic_word_file(topics, file_name)
-    # doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
-    # write_doc_topic_file(doc_topic_dictionary, file_name)
+    logger.debug("Batch Latent Dirichlet Allocation.")
+    file_name = "batch_lda"
+    lda_model = simple_lda_model_training(input_matrix, logger)
+    topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
+    write_topic_word_file(topics, file_name)
+    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
+    write_doc_topic_file(doc_topic_dictionary, file_name)
+    topic_distribution_plots(file_name, logger, topics)
 
     logger.debug("Online Latent Dirichlet Allocation.")
     file_name = "online_lda"
@@ -145,24 +177,7 @@ def driver(logger_: logging.Logger) -> None:
     write_topic_word_file(topics, file_name)
     doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
     write_doc_topic_file(doc_topic_dictionary, file_name)
-
-    logger.debug("Starting to plot...")
-    fig, axs = plt.subplots(nrows=NUM_TOPICS // 2, ncols=2)
-    for i in range(NUM_TOPICS // 2):
-        topic_num_e, topic_num_o = 2 * i, 2 * i + 1
-
-        # axs[i, 0].title(f"topic {topic_num_e} distribution".upper())
-        # axs[i, 0].ylabel("percentage".upper())
-        # axs[i, 0].xlabel("words".upper())
-        sns.barplot(y=np.array(list(topics[topic_num_e].values())) * 100, x=list(topics[topic_num_e].keys()))
-        # axs[i, 0].xticks(range(len(topics[topic_num_e].keys())), list(topics[topic_num_e].keys()), rotation=45)
-
-        # axs[i, 1].title(f"topic {topic_num_o} distribution".upper())
-        # axs[i, 1].ylabel("percentage".upper())
-        # axs[i, 1].xlabel("words".upper())
-        sns.barplot(y=np.array(list(topics[topic_num_o].values())) * 100, x=list(topics[topic_num_o].keys()))
-        # axs[i, 1].xticks(range(len(topics[topic_num_o].keys())), list(topics[topic_num_o].keys()), rotation=45)
-    plt.show()
+    topic_distribution_plots(file_name, logger, topics)
 
     return None
 
