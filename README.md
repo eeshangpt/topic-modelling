@@ -7,3 +7,7 @@ Steps:
 - Extract all the documents in `./data`.
     - `dvc pull`
 
+## Create Logs Directory
+Steps:
+- `mkdir logs`
+
