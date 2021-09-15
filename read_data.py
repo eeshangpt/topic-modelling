@@ -12,6 +12,7 @@ from timeit import default_timer as timer
 from typing import Any, Tuple
 
 from nltk import download
+from nltk import pos_tag
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
@@ -24,6 +25,7 @@ from utils.basic_utilities import *
 download('punkt')
 download('stopwords')
 download('wordnet')
+download('averaged_perceptron_tagger')
 
 
 def get_documents(logger_: logging.Logger) -> List:
@@ -36,7 +38,7 @@ def get_documents(logger_: logging.Logger) -> List:
     start = timer()
     for _, __, files in walk(DATA_DIR):
         for file in tqdm(files):
-            if isfile(join(DATA_DIR, file)):
+            if isfile(join(DATA_DIR, file)) and file[-5:] == '.json':
                 with open(join(DATA_DIR, file), 'r') as f:
                     documents.append(load(f))
     logger.debug(f"Fetching process completed in {timer() - start} seconds.")
@@ -72,11 +74,13 @@ def preprocess_text(logger_: logging.Logger, documents: List) -> List:
     documents_cleaned = []
     for doc_text in map(lambda doc_dict: doc_dict['text'], documents):
         temp_ = []
-        for token in word_tokenize(doc_text.lower()):
-            lemma_token = lemmatizer.lemmatize(token)
-            if token_condition(lemma_token):
-                if lemma_token not in stop_words:
-                    temp_.append(lemma_token)
+        tokenized_pos_tagged_document = pos_tag(word_tokenize(doc_text.lower()))
+        for token, tag in tokenized_pos_tagged_document:
+            if 'NN' in tag:
+                lemma_token = lemmatizer.lemmatize(token)
+                if token_condition(lemma_token):
+                    if lemma_token not in stop_words:
+                        temp_.append(lemma_token)
         documents_cleaned.append(temp_)
         del temp_
     return documents_cleaned
@@ -135,7 +139,7 @@ def vectorize_tfidf(logger_: logging.Logger, documents_cleaned: List, file: str 
     tfidf_vectorizer = TfidfVectorizer(stop_words='english', vocabulary=vocabulary)
     if not save_matrix:
         logger.debug("Directly returning the vectors.")
-        return tfidf_vectorizer, __vectorize(documents_cleaned, logger, tfidf_vectorizer)
+        return __vectorize(documents_cleaned, logger, tfidf_vectorizer)
     else:
         logger.debug("Saving the vectors.")
         __save_as_a_file(tfidf_vectorizer, documents_cleaned, file, logger)
