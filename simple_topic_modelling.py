@@ -6,6 +6,7 @@
 import json
 from os import mkdir
 from os.path import isdir
+from shutil import rmtree
 from typing import NoReturn
 
 import matplotlib
@@ -21,8 +22,8 @@ from utils.basic_utilities import *
 matplotlib.use('TkAgg')
 sns.set_style('darkgrid')
 
-NUM_WORDS_IN_TOPIC = 15
-NUM_TOPICS = 20
+NUM_WORDS_IN_TOPIC = 20
+NUM_TOPICS = 4
 
 matplotlib_logger = logging.getLogger("matplotlib.font_manager")
 matplotlib_logger.setLevel(logging.CRITICAL)
@@ -129,7 +130,8 @@ def topic_distribution_plots(file_name, logger_, topics) -> bool:
         mkdir(plot_dir)
         assert isdir(plot_dir)
     except FileExistsError:
-        pass
+        rmtree(plot_dir)
+        mkdir(plot_dir)
     except AssertionError:
         logger.critical("Plotting connot be completed. Skipping Visualisations...")
         return False
