@@ -96,7 +96,7 @@ def simple_lda_model_training(input_matrix: csr_matrix, logger_: logging.Logger)
     """
     logger = logger_.getChild("simple_lda_model")
     logger.debug("Initializing LDA Model...")
-    lda_model = LatentDirichletAllocation(n_components=NUM_TOPICS, verbose=1, random_state=42)
+    lda_model = LatentDirichletAllocation(n_components=NUM_TOPICS, verbose=1)  # , random_state=42)
     logger.debug("Fitting the LDA model...")
     start = timer()
     lda_model.fit(input_matrix)
@@ -110,7 +110,7 @@ def online_lda_model_training(input_matrix: csr_matrix, logger_: logging.Logger)
     logger.debug("Initializing LDA Model...")
     lda_model = LatentDirichletAllocation(n_components=NUM_TOPICS, learning_method='online',
                                           max_iter=(input_matrix.shape[0] // batch_size), batch_size=batch_size,
-                                          learning_offset=50, verbose=1, random_state=42)
+                                          learning_offset=50, verbose=1)  # , random_state=42)
     logger.debug("Fitting the LDA model...")
     start = timer()
     lda_model.fit(input_matrix)
@@ -184,7 +184,8 @@ def driver(logger_: logging.Logger) -> None:
 
 if __name__ == '__main__':
     logger_main = logging.getLogger("SIMPLE_TOPIC_MODELLING")
-    logging.basicConfig(**get_config(level=logging.DEBUG, file_logging=False, filename="", stop_stream_logging=False))
+    logging.basicConfig(**get_config(level=logging.DEBUG, file_logging=True, filename='simple_topic_modelling',
+                                     stop_stream_logging=False))
     logger_main.critical(__doc__)
     driver(logger_main)
     logger_main.critical(end_line.__doc__)
