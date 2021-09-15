@@ -135,7 +135,7 @@ def vectorize_tfidf(logger_: logging.Logger, documents_cleaned: List, file: str 
     tfidf_vectorizer = TfidfVectorizer(stop_words='english', vocabulary=vocabulary)
     if not save_matrix:
         logger.debug("Directly returning the vectors.")
-        return tfidf_vectorizer, __vectorize(documents_cleaned, logger, tfidf_vectorizer)
+        return __vectorize(documents_cleaned, logger, tfidf_vectorizer)
     else:
         logger.debug("Saving the vectors.")
         __save_as_a_file(tfidf_vectorizer, documents_cleaned, file, logger)

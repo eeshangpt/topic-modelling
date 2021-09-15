@@ -4,24 +4,45 @@
 +------------------------------+
 """
 import json
+import logging
 from typing import NoReturn
 
+import matplotlib
 import numpy as np
+import pandas as pd
+import seaborn as sns
+from matplotlib import pyplot as plt
 from sklearn.decomposition import LatentDirichletAllocation
 
 from read_data import *
 from utils.basic_utilities import *
 
+matplotlib.use('TkAgg')
+sns.set_style('darkgrid')
+
 NUM_WORDS_IN_TOPIC = 15
 NUM_TOPICS = 20
+
+matplotlib_logger = logging.getLogger("matplotlib.font_manager")
+matplotlib_logger.setLevel(logging.CRITICAL)
+matplotlib_logger.propagate = False
 
 
 def write_doc_topic_file(doc_topic_dictionary: Dict, file_name: str) -> NoReturn:
     """
     Writes file containing document and predicted topic pair.
     """
-    with open(join(RESULTS_DIR, f"doc_topic_{file_name}.json"), 'w') as f:
-        json.dump(doc_topic_dictionary, f)
+    doc_topic_df = pd.DataFrame.from_dict(doc_topic_dictionary, orient='index',
+                                          columns=['topic_id', 'score'])
+    full_file_name = join(RESULTS_DIR, f"doc_topic_{file_name}.csv")
+    print_doc_topic = doc_topic_df.to_csv(index=True, index_label='doc_id', mode='w', encoding='utf-8',
+                                          float_format="%.3f")
+    with open(full_file_name, 'w') as f:
+        f.write(print_doc_topic)
+    try:
+        assert isfile(full_file_name)
+    except:
+        print("aaaa")
 
 
 def write_topic_word_file(topics: Dict, file_name: str) -> NoReturn:
@@ -32,7 +53,7 @@ def write_topic_word_file(topics: Dict, file_name: str) -> NoReturn:
         json.dump(topics, f)
 
 
-def get_topic_for_each_document(input_matrix: csr_matrix, lda_model: LatentDirichletAllocation, topics: Dict,
+def get_topic_for_each_document(input_matrix: csr_matrix, lda_model: LatentDirichletAllocation,
                                 logger_: logging.Logger) -> Dict:
     """
     Finding, for each document, maximum of multinomial distribution over topics.
@@ -43,7 +64,7 @@ def get_topic_for_each_document(input_matrix: csr_matrix, lda_model: LatentDiric
     topic_doc_matrix = lda_model.transform(input_matrix)
     logger.debug(f"Got predictions in {timer() - start} seconds.")
     logger.debug("Generating returnable object.")
-    doc_topic_dictionary = {itr: [int(np.argmax(topic_scores)), topics[int(np.argmax(topic_scores))]]
+    doc_topic_dictionary = {itr: [int(np.argmax(topic_scores)), topic_scores[int(np.argmax(topic_scores))]]
                             for itr, topic_scores in enumerate(topic_doc_matrix)}
     return doc_topic_dictionary
 
@@ -74,7 +95,21 @@ def simple_lda_model_training(input_matrix: csr_matrix, logger_: logging.Logger)
     """
     logger = logger_.getChild("simple_lda_model")
     logger.debug("Initializing LDA Model...")
-    lda_model = LatentDirichletAllocation(n_components=NUM_TOPICS, random_state=42)
+    lda_model = LatentDirichletAllocation(n_components=NUM_TOPICS, verbose=1, random_state=42)
+    logger.debug("Fitting the LDA model...")
+    start = timer()
+    lda_model.fit(input_matrix)
+    logger.debug(f"LDA model training took {timer() - start} seconds.")
+    return lda_model
+
+
+def online_lda_model_training(input_matrix: csr_matrix, logger_: logging.Logger) -> LatentDirichletAllocation:
+    logger = logger_.getChild("online_lda_model_training")
+    batch_size = 100
+    logger.debug("Initializing LDA Model...")
+    lda_model = LatentDirichletAllocation(n_components=NUM_TOPICS, learning_method='online',
+                                          max_iter=(input_matrix.shape[0] // batch_size), batch_size=batch_size,
+                                          learning_offset=50, verbose=1, random_state=42)
     logger.debug("Fitting the LDA model...")
     start = timer()
     lda_model.fit(input_matrix)
@@ -88,7 +123,6 @@ def driver(logger_: logging.Logger) -> None:
     """
     logger = logger_.getChild("driver")
     documents = [" ".join(doc) for doc in get_corpus(logger)]
-    # documents = get_corpus(logger)
     logger.debug("Loading document vectors...")
     start = timer()
     # vectorizer, input_matrix = vectorize_count(logger, documents, save_matrix=False)
@@ -96,11 +130,40 @@ def driver(logger_: logging.Logger) -> None:
     logger.debug(f"Document-Vectors loaded in {timer() - start} seconds.")
     logger.debug(f"Shape of matrix = {input_matrix.shape}")
 
-    lda_model = simple_lda_model_training(input_matrix, logger)
+    # logger.debug("Batch Latent Dirichlet Allocation.")
+    # file_name = "batch_lda"
+    # lda_model = simple_lda_model_training(input_matrix, logger)
+    # topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
+    # write_topic_word_file(topics, file_name)
+    # doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
+    # write_doc_topic_file(doc_topic_dictionary, file_name)
+
+    logger.debug("Online Latent Dirichlet Allocation.")
+    file_name = "online_lda"
+    lda_model = online_lda_model_training(input_matrix, logger)
     topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
-    write_topic_word_file(topics)
-    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, topics, logger)
-    write_doc_topic_file(doc_topic_dictionary)
+    write_topic_word_file(topics, file_name)
+    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
+    write_doc_topic_file(doc_topic_dictionary, file_name)
+
+    logger.debug("Starting to plot...")
+    fig, axs = plt.subplots(nrows=NUM_TOPICS // 2, ncols=2)
+    for i in range(NUM_TOPICS // 2):
+        topic_num_e, topic_num_o = 2 * i, 2 * i + 1
+
+        # axs[i, 0].title(f"topic {topic_num_e} distribution".upper())
+        # axs[i, 0].ylabel("percentage".upper())
+        # axs[i, 0].xlabel("words".upper())
+        sns.barplot(y=np.array(list(topics[topic_num_e].values())) * 100, x=list(topics[topic_num_e].keys()))
+        # axs[i, 0].xticks(range(len(topics[topic_num_e].keys())), list(topics[topic_num_e].keys()), rotation=45)
+
+        # axs[i, 1].title(f"topic {topic_num_o} distribution".upper())
+        # axs[i, 1].ylabel("percentage".upper())
+        # axs[i, 1].xlabel("words".upper())
+        sns.barplot(y=np.array(list(topics[topic_num_o].values())) * 100, x=list(topics[topic_num_o].keys()))
+        # axs[i, 1].xticks(range(len(topics[topic_num_o].keys())), list(topics[topic_num_o].keys()), rotation=45)
+    plt.show()
+
     return None
 
 
