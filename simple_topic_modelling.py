@@ -3,24 +3,14 @@
 |    SIMPLE TOPIC MODELLING    |
 +------------------------------+
 """
-import json
-from os import mkdir
-from os.path import isdir
-from shutil import rmtree
-from typing import NoReturn
 
-import matplotlib
 import numpy as np
-import pandas as pd
-import seaborn as sns
-from matplotlib import pyplot as plt
 from sklearn.decomposition import LatentDirichletAllocation
 
 from read_data import *
 from utils.basic_utilities import *
-
-matplotlib.use('TkAgg')
-sns.set_style('darkgrid')
+from utils.topic_modelling_utilities import write_topic_word_file, write_doc_topic_file
+from visualisation import lda_topic_distribution_plots
 
 NUM_WORDS_IN_TOPIC = 20
 NUM_TOPICS = 4
@@ -28,27 +18,6 @@ NUM_TOPICS = 4
 matplotlib_logger = logging.getLogger("matplotlib.font_manager")
 matplotlib_logger.setLevel(logging.CRITICAL)
 matplotlib_logger.propagate = False
-
-
-def write_doc_topic_file(doc_topic_dictionary: Dict, file_name: str) -> NoReturn:
-    """
-    Writes file containing document and predicted topic pair.
-    """
-    doc_topic_df = pd.DataFrame.from_dict(doc_topic_dictionary, orient='index',
-                                          columns=['topic_id', 'score'])
-    full_file_name = join(RESULTS_DIR, f"doc_topic_{file_name}.csv")
-    print_doc_topic = doc_topic_df.to_csv(index=True, index_label='doc_id', mode='w', encoding='utf-8',
-                                          float_format="%.3f")
-    with open(full_file_name, 'w') as f:
-        f.write(print_doc_topic)
-
-
-def write_topic_word_file(topics: Dict, file_name: str) -> NoReturn:
-    """
-    Writes file containing topic and their word pairs.
-    """
-    with open(join(RESULTS_DIR, f"topic_word_{file_name}.json"), 'w') as f:
-        json.dump(topics, f)
 
 
 def get_topic_for_each_document(input_matrix: csr_matrix, lda_model: LatentDirichletAllocation,
@@ -115,37 +84,6 @@ def online_lda_model_training(input_matrix: csr_matrix, logger_: logging.Logger)
     return lda_model
 
 
-def topic_distribution_plots(file_name, logger_, topics) -> bool:
-    """"""
-    logger = logger_.getChild("topic_distribution_plots")
-
-    logger.debug("Starting to plot and saving...")
-    plot_dir = join(RESULTS_DIR, f'{file_name}_plots')
-
-    try:
-        mkdir(plot_dir)
-        assert isdir(plot_dir)
-    except FileExistsError:
-        rmtree(plot_dir)
-        mkdir(plot_dir)
-    except AssertionError:
-        logger.critical("Plotting connot be completed. Skipping Visualisations...")
-        return False
-
-    start = timer()
-    for i in range(len(topics)):
-        plt.figure(figsize=(8, 6))
-        plt.bar(list(topics[i].keys()), np.array(list(topics[i].values())) * 100)
-        plt.ylabel("% age")
-        plt.xlabel("words".upper())
-        plt.title(f"topic# {i}".upper())
-        plt.xticks(rotation=45)
-        plt.savefig(join(RESULTS_DIR, f'{file_name}_plots', f'topic_num_{i}.png'), format='png')
-    logger.debug(f"Visualisation took {timer() - start} seconds.")
-
-    return True
-
-
 def driver(logger_: logging.Logger) -> None:
     """
     DRIVER.
@@ -166,7 +104,7 @@ def driver(logger_: logging.Logger) -> None:
     write_topic_word_file(topics, file_name)
     doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
     write_doc_topic_file(doc_topic_dictionary, file_name)
-    topic_distribution_plots(file_name, logger, topics)
+    lda_topic_distribution_plots(file_name, logger, topics)
 
     logger.debug("Online Latent Dirichlet Allocation.")
     file_name = "online_lda"
@@ -175,7 +113,7 @@ def driver(logger_: logging.Logger) -> None:
     write_topic_word_file(topics, file_name)
     doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
     write_doc_topic_file(doc_topic_dictionary, file_name)
-    topic_distribution_plots(file_name, logger, topics)
+    lda_topic_distribution_plots(file_name, logger, topics)
 
     return None
 
