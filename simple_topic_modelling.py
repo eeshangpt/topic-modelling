@@ -41,10 +41,6 @@ def write_doc_topic_file(doc_topic_dictionary: Dict, file_name: str) -> NoReturn
                                           float_format="%.3f")
     with open(full_file_name, 'w') as f:
         f.write(print_doc_topic)
-    try:
-        assert isfile(full_file_name)
-    except:
-        print("aaaa")
 
 
 def write_topic_word_file(topics: Dict, file_name: str) -> NoReturn:
