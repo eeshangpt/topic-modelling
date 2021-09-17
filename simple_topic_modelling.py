@@ -10,7 +10,7 @@ from sklearn.decomposition import LatentDirichletAllocation
 from read_data import *
 from utils.basic_utilities import *
 from utils.topic_modelling_utilities import write_topic_word_file, write_doc_topic_file
-from visualisation import lda_topic_distribution_plots
+from visualisation import lda_topic_distribution_plots, create_word_cloud_for_topic
 
 NUM_WORDS_IN_TOPIC = 20
 NUM_TOPICS = 4
@@ -18,6 +18,13 @@ NUM_TOPICS = 4
 matplotlib_logger = logging.getLogger("matplotlib.font_manager")
 matplotlib_logger.setLevel(logging.CRITICAL)
 matplotlib_logger.propagate = False
+
+
+def sigmoid_function(arr: np.ndarray) -> np.ndarray:
+    """
+    Sigmoid function.
+    """
+    return np.exp(arr) / (np.exp(arr) + 1)
 
 
 def get_topic_for_each_document(input_matrix: csr_matrix, lda_model: LatentDirichletAllocation,
@@ -47,10 +54,10 @@ def finding_words_distribution_for_topics(lda_model: LatentDirichletAllocation, 
     topics = {}
     for i in range(lda_model.n_components):
         word_distro = lda_model.components_[i]
-        sorted_indices = np.argsort(word_distro)[::-1][:NUM_WORDS_IN_TOPIC]
+        sorted_indices = np.argsort(word_distro)[::-1][:NUM_WORDS_IN_TOPIC * 50]
         words = [vectorizer.get_feature_names()[_] for _ in sorted_indices]
         words_values = np.array([word_distro[_] for _ in sorted_indices])
-        words_values /= np.sum(words_values)
+        words_values = sigmoid_function(words_values)
         topics[i] = {_[0]: _[1] for _ in zip(words, words_values)}
     logger.debug(f"Topics' distributions over words found in {timer() - start} seconds.")
     return topics
@@ -84,6 +91,18 @@ def online_lda_model_training(input_matrix: csr_matrix, logger_: logging.Logger)
     return lda_model
 
 
+def process_topics(file_name, input_matrix, lda_model, logger_, vectorizer):
+    """"""
+    logger = logger_.getChild("process_topics")
+    topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
+    write_topic_word_file(topics, file_name)
+    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
+    write_doc_topic_file(doc_topic_dictionary, file_name)
+    lda_topic_distribution_plots(file_name, logger, topics, NUM_WORDS_IN_TOPIC)
+    for topic, word_distribution in topics.items():
+        create_word_cloud_for_topic(file_name, topic, word_distribution)
+
+
 def driver(logger_: logging.Logger) -> None:
     """
     DRIVER.
@@ -100,20 +119,12 @@ def driver(logger_: logging.Logger) -> None:
     logger.debug("Batch Latent Dirichlet Allocation.")
     file_name = "batch_lda"
     lda_model = simple_lda_model_training(input_matrix, logger)
-    topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
-    write_topic_word_file(topics, file_name)
-    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
-    write_doc_topic_file(doc_topic_dictionary, file_name)
-    lda_topic_distribution_plots(file_name, logger, topics)
+    process_topics(file_name, input_matrix, lda_model, logger, vectorizer)
 
     logger.debug("Online Latent Dirichlet Allocation.")
     file_name = "online_lda"
     lda_model = online_lda_model_training(input_matrix, logger)
-    topics = finding_words_distribution_for_topics(lda_model, logger, vectorizer)
-    write_topic_word_file(topics, file_name)
-    doc_topic_dictionary = get_topic_for_each_document(input_matrix, lda_model, logger)
-    write_doc_topic_file(doc_topic_dictionary, file_name)
-    lda_topic_distribution_plots(file_name, logger, topics)
+    process_topics(file_name, input_matrix, lda_model, logger, vectorizer)
 
     return None
 
