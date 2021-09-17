@@ -22,3 +22,8 @@ Steps:
 Steps:
 
 - `mkdir res`
+
+## Execute the scripts.
+
+- Executing Latent Dirichlet Allocation with TF-IDF vectorization.
+    - `python simple_topic_modelling.py`
