@@ -27,3 +27,6 @@ Steps:
 
 - Executing Latent Dirichlet Allocation with TF-IDF vectorization.
     - `python simple_topic_modelling.py`
+
+### REFERENCES
+ 1. Topic modelling with Word Embedding, F. Esposito, A. Corraza, F. Cutugno, *Third Italian Conference on Computational Linguistics CLiC-it 2016*
