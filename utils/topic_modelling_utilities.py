@@ -3,9 +3,9 @@
 |    TOPIC MODELLING UTILITIES    |
 +---------------------------------+
 """
-import json
 from typing import NoReturn
 
+import numpy as np
 import pandas as pd
 
 from .basic_utilities import *
@@ -28,5 +28,12 @@ def write_topic_word_file(topics: Dict, file_name: str) -> NoReturn:
     """
     Writes file containing topic and their word pairs.
     """
-    with open(join(RESULTS_DIR, f"topic_word_{file_name}.json"), 'w') as f:
-        json.dump(topics, f)
+    topic_distro = {topic: [[(term, float(f"{score:.3f}")) for term, score in word_distro.items()],
+                            float(f"{np.mean([score for score in word_distro.values()]):.3f}"),
+                            [term for term in word_distro.keys()]] for topic, word_distro in topics.items()}
+    topic_distro_df = pd.DataFrame.from_dict(topic_distro, orient='index',
+                                             columns=['word_and_score', 'avg_scores', 'words_in_topic'])
+    print_topic_distro = topic_distro_df.to_csv(index=True, index_label='topic_id', mode='w', encoding='utf-8')
+    full_file_name = join(RESULTS_DIR, f"topic_word_{file_name}.csv")
+    with open(full_file_name, 'w') as f:
+        f.write(print_topic_distro)
