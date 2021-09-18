@@ -153,7 +153,7 @@ def get_corpus(logger_: logging.Logger, dimension: int = None) -> List:
     logger.debug("Getting cleaned documents and creating a corpus...")
     start = timer()
     if dimension is not None:
-        tokenized_pickle = join(DATA_DIR, 'corpus', f'tokenized_{dimension}.pkl')
+        tokenized_pickle = join(DATA_DIR, 'corpus', f'tokenized.{dimension}.pkl')
     else:
         tokenized_pickle = join(DATA_DIR, 'corpus', f'tokenized.pkl')
     try:
