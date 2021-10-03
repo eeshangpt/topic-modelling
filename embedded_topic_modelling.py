@@ -49,7 +49,7 @@ def embed_corpus(corpus: List, embedder: GloVeEmbedding, logger_: logging.Logger
         embedded_corpus = []
         for doc in tqdm(corpus):
             temp_ = [embedder.get(token) for token in doc]
-            embedded_corpus.append(operation(temp_, axis=1) if len(temp_) > 0 else np.zeros((embedder.dimension,)))
+            embedded_corpus.append(operation(temp_, axis=0) if len(temp_) > 0 else np.zeros((embedder.dimension,)))
         embedded_corpus = np.array(embedded_corpus)
     logger.debug(f"Embedding completed {timer() - start} seconds.")
     logger.debug(f"Shape of corpus = {embedded_corpus.shape}...")
